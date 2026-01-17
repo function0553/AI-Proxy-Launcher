@@ -4,15 +4,128 @@ import yaml
 import requests
 import base64
 import re
+import json
+from urllib.parse import urlparse, parse_qs
+
 
 def preprocess_yaml(content: str) -> str:
     """预处理 YAML 内容，移除特殊标签"""
     content = re.sub(r'!\<[a-zA-Z]+\>\s*', '', content)
     return content
 
+
+# =========================
+# 🔥 新增：URI 解析实现
+# =========================
+
+def _safe_b64decode(data: str):
+    try:
+        return base64.b64decode(data + "===").decode("utf-8", errors="ignore")
+    except Exception:
+        return None
+
+
+def _parse_vmess(uri: str):
+    try:
+        raw = _safe_b64decode(uri[8:])
+        data = json.loads(raw)
+        return {
+            "name": data.get("ps", "vmess"),
+            "type": "vmess",
+            "server": data["add"],
+            "port": int(data["port"]),
+            "uuid": data["id"],
+            "alterId": int(data.get("aid", 0)),
+            "cipher": "auto",
+            "network": data.get("net", "tcp"),
+            "tls": data.get("tls") == "tls",
+            "udp": True
+        }
+    except Exception:
+        return None
+
+
+def _parse_ss(uri: str):
+    try:
+        body = uri[5:]
+        name = "ss"
+        if "#" in body:
+            body, name = body.split("#", 1)
+
+        if "@" not in body:
+            body = _safe_b64decode(body)
+
+        cipher_pass, server_part = body.split("@")
+        cipher, password = cipher_pass.split(":")
+        server, port = server_part.split(":")
+
+        return {
+            "name": name,
+            "type": "ss",
+            "server": server,
+            "port": int(port),
+            "cipher": cipher,
+            "password": password,
+            "udp": True
+        }
+    except Exception:
+        return None
+
+
+def _parse_trojan(uri: str):
+    try:
+        body = uri[9:]
+        name = "trojan"
+        if "#" in body:
+            body, name = body.split("#", 1)
+
+        password, server_part = body.split("@")
+        server, port = server_part.split(":")
+
+        return {
+            "name": name,
+            "type": "trojan",
+            "server": server,
+            "port": int(port),
+            "password": password,
+            "sni": server,
+            "udp": True
+        }
+    except Exception:
+        return None
+
+
+def _parse_vless(uri: str):
+    try:
+        u = urlparse(uri)
+        qs = parse_qs(u.query)
+        return {
+            "name": u.fragment or "vless",
+            "type": "vless",
+            "server": u.hostname,
+            "port": u.port,
+            "uuid": u.username,
+            "network": qs.get("type", ["tcp"])[0],
+            "tls": qs.get("security", [""])[0] == "tls",
+            "udp": True
+        }
+    except Exception:
+        return None
+
+
 def parse_proxy_uri(uri: str):
-    """解析代理 URI（需要你的完整实现）"""
+    """解析代理 URI（完整版实现）"""
+    uri = uri.strip()
+    if uri.startswith("vmess://"):
+        return _parse_vmess(uri)
+    if uri.startswith("ss://"):
+        return _parse_ss(uri)
+    if uri.startswith("trojan://"):
+        return _parse_trojan(uri)
+    if uri.startswith("vless://"):
+        return _parse_vless(uri)
     return None
+
 
 def merge_subscriptions(sub_urls):
     """合并订阅并生成配置"""
@@ -26,6 +139,8 @@ def merge_subscriptions(sub_urls):
             yml_clean = preprocess_yaml(yml)
 
             parsed = False
+
+            # ---------- 1️⃣ 直接 YAML ----------
             try:
                 data = yaml.safe_load(yml_clean)
                 if isinstance(data, dict):
@@ -39,6 +154,7 @@ def merge_subscriptions(sub_urls):
             except yaml.YAMLError:
                 pass
 
+            # ---------- 2️⃣ Base64 → YAML ----------
             if not parsed:
                 try:
                     decoded = base64.b64decode(yml + "===").decode("utf-8").strip()
@@ -52,8 +168,26 @@ def merge_subscriptions(sub_urls):
                     elif isinstance(data, list):
                         proxies.extend(data)
                         parsed = True
+
+                    # ---------- 🔥 新增：Base64 → URI 行 ----------
+                    if not parsed:
+                        for line in decoded.splitlines():
+                            if line.startswith(("vmess://", "ss://", "trojan://", "vless://")):
+                                p = parse_proxy_uri(line)
+                                if p:
+                                    proxies.append(p)
+                                    parsed = True
                 except Exception:
                     pass
+
+            # ---------- 🔥 新增：纯 URI 文本 ----------
+            if not parsed:
+                for line in yml.splitlines():
+                    if line.startswith(("vmess://", "ss://", "trojan://", "vless://")):
+                        p = parse_proxy_uri(line)
+                        if p:
+                            proxies.append(p)
+                            parsed = True
 
         except Exception:
             continue

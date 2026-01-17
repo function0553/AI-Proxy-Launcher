@@ -64,6 +64,13 @@
             color: var(--accent);
             font-size: 18px;
         }
+        .info-banner.error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        .info-banner.error i {
+            color: #ef4444;
+        }
         
         .node-list { 
             display: flex; flex-direction: column; gap: 8px; 
@@ -121,6 +128,14 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+
+        /* 节点统计 */
+        .node-stats {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 10px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -139,6 +154,10 @@
             <div class="info-banner" id="infoBanner">
                 <i class="ri-information-line"></i>
                 <span id="infoText">选择节点后系统代理会自动启用</span>
+            </div>
+
+            <div class="node-stats" id="nodeStats">
+                正在加载节点...
             </div>
             
             <div id="nodeList" class="node-list">
@@ -159,6 +178,37 @@
                 const res = await fetch('/api/nodes');
                 const data = await res.json();
                 const container = document.getElementById('nodeList');
+                const statsEl = document.getElementById('nodeStats');
+                
+                // 🔥 修复：处理错误信息
+                if (data.message && data.nodes.length === 0) {
+                    container.innerHTML = `
+                        <div class="loading">
+                            <i class="ri-error-warning-line"></i>
+                            <p>${data.message}</p>
+                        </div>
+                    `;
+                    statsEl.textContent = '暂无可用节点';
+                    
+                    // 显示错误横幅
+                    const infoBanner = document.getElementById('infoBanner');
+                    const infoText = document.getElementById('infoText');
+                    infoBanner.classList.add('error');
+                    infoText.textContent = data.message;
+                    
+                    return;
+                }
+                
+                // 🔥 修复：显示节点统计
+                if (data.total) {
+                    statsEl.textContent = `共 ${data.total} 个节点`;
+                    if (data.current) {
+                        statsEl.textContent += ` | 当前: ${data.current}`;
+                    }
+                } else {
+                    statsEl.textContent = '暂无节点';
+                }
+                
                 container.innerHTML = '';
                 
                 if (data.nodes.length === 0) {
@@ -171,13 +221,18 @@
                     return;
                 }
                 
+                // 🔥 修复：安全渲染节点列表
                 data.nodes.forEach(node => {
                     const div = document.createElement('div');
                     div.className = `node-item ${node.name === data.current ? 'active' : ''}`;
                     div.onclick = () => switchNode(node.name);
+                    
+                    // 显示节点类型
+                    const typeIcon = getNodeTypeIcon(node.type);
+                    
                     div.innerHTML = `
-                        <span class="name">${node.name}</span>
-                        <span class="delay">${node.delay}</span>
+                        <span class="name">${typeIcon} ${escapeHtml(node.name)}</span>
+                        <span class="delay">${escapeHtml(node.delay)}</span>
                     `;
                     container.appendChild(div);
                 });
@@ -186,13 +241,33 @@
                 updateProxyStatus();
                 
             } catch (e) {
+                console.error('加载节点失败:', e);
                 document.getElementById('nodeList').innerHTML = `
                     <div class="loading">
                         <i class="ri-error-warning-line"></i>
-                        <p>加载失败，请确保 Clash 已启动</p>
+                        <p>加载失败: ${escapeHtml(e.message)}</p>
+                        <p style="font-size: 12px; margin-top: 10px;">请确保 Clash 已启动</p>
                     </div>
                 `;
+                document.getElementById('nodeStats').textContent = '加载失败';
             }
+        }
+
+        function getNodeTypeIcon(type) {
+            const icons = {
+                'ss': '🔒',
+                'vmess': '🚀',
+                'trojan': '🛡️',
+                'vless': '⚡',
+                'ssr': '🔐'
+            };
+            return icons[type] || '📡';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
         }
 
         async function switchNode(name) {
@@ -206,9 +281,11 @@
                 const data = await res.json();
                 
                 // 如果是首次启用代理，显示提示
-                if (data.proxy_enabled && !proxyEnabled) {
+                if (data.first_time) {
                     showNotification('✅ 系统代理已自动启用！', true);
                     proxyEnabled = true;
+                } else {
+                    showNotification(`✅ 已切换到: ${name}`, true);
                 }
                 
                 loadNodes(); // 刷新列表
@@ -230,6 +307,7 @@
                 if (data.enabled) {
                     indicator.classList.add('enabled');
                     proxyText.textContent = '已启用';
+                    infoBanner.classList.remove('error');
                     infoBanner.style.background = 'rgba(34, 197, 94, 0.1)';
                     infoBanner.style.borderColor = 'rgba(34, 197, 94, 0.3)';
                     infoText.innerHTML = '<strong>系统代理已启用</strong> - 所有浏览器都可以使用';
@@ -237,9 +315,13 @@
                 } else {
                     indicator.classList.remove('enabled');
                     proxyText.textContent = '待启用';
-                    infoBanner.style.background = 'rgba(251, 191, 36, 0.1)';
-                    infoBanner.style.borderColor = 'rgba(251, 191, 36, 0.3)';
-                    infoText.innerHTML = '<strong>请选择一个节点</strong> - 选择后系统代理会自动启用';
+                    
+                    if (!infoBanner.classList.contains('error')) {
+                        infoBanner.style.background = 'rgba(251, 191, 36, 0.1)';
+                        infoBanner.style.borderColor = 'rgba(251, 191, 36, 0.3)';
+                        infoText.innerHTML = '<strong>请选择一个节点</strong> - 选择后系统代理会自动启用';
+                    }
+                    
                     proxyEnabled = false;
                 }
             } catch (e) {
@@ -254,10 +336,13 @@
             const originalBg = infoBanner.style.background;
             const originalBorder = infoBanner.style.borderColor;
             
+            infoBanner.classList.remove('error');
+            
             if (isSuccess) {
                 infoBanner.style.background = 'rgba(34, 197, 94, 0.2)';
                 infoBanner.style.borderColor = 'rgba(34, 197, 94, 0.5)';
             } else {
+                infoBanner.classList.add('error');
                 infoBanner.style.background = 'rgba(239, 68, 68, 0.2)';
                 infoBanner.style.borderColor = 'rgba(239, 68, 68, 0.5)';
             }
@@ -265,6 +350,7 @@
             infoText.innerHTML = message;
             
             setTimeout(() => {
+                infoBanner.classList.remove('error');
                 infoBanner.style.background = originalBg;
                 infoBanner.style.borderColor = originalBorder;
                 updateProxyStatus();

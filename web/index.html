@@ -58,6 +58,30 @@
             color: #fbbf24;
         }
 
+        /* 🔥 新增：Clash 状态指示器 */
+        .clash-status {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .clash-status.running {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+        }
+        .clash-status.stopped {
+            color: #ef4444;
+        }
+        .clash-status i {
+            font-size: 18px;
+        }
+
         input {
             width: 100%; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
             background: rgba(0,0,0,0.2); color: white; margin: 20px 0; box-sizing: border-box;
@@ -126,6 +150,12 @@
         <h2 style="margin:0">AI 订阅助手</h2>
         <p style="color:#94a3b8; font-size:14px">请输入 Clash 订阅链接</p>
 
+        <!-- 🔥 新增：Clash 运行状态 -->
+        <div id="clashStatus" class="clash-status stopped">
+            <i class="ri-close-circle-line"></i>
+            <span>Clash 未运行 - 请先更新订阅</span>
+        </div>
+
         <div class="status-card">
             <h3>
                 <i class="ri-shield-check-line"></i>
@@ -158,8 +188,8 @@
 
         <div class="info-text">
             <strong>📋 使用步骤：</strong>
-            <div class="step">第一步：输入订阅链接并点击“更新配置”</div>
-            <div class="step">第二步：前往“节点选择”页面选择节点</div>
+            <div class="step">第一步：输入订阅链接并点击"更新配置"</div>
+            <div class="step">第二步：前往"节点选择"页面选择节点</div>
             <div class="step">第三步：选择节点后系统代理会自动启用</div>
             <div class="step">第四步：直接使用浏览器访问需要代理的网站</div>
             <div class="step">右键托盘图标可退出</div>
@@ -168,7 +198,7 @@
             <strong>🌐 推荐免费 Clash 节点：</strong>
 
             <div class="step">
-                免费订阅链接：(点击后复制链接，不是复制网页内容)
+                免费订阅链接：(点击后复制链接,不是复制网页内容)
                 <a href="https://ghfile.geekertao.top/https://github.com/PuddinCat/BestClash/blob/main/proxies.yaml"
                    target="_blank" style="color:#38bdf8;word-break:break-all;">
                     PuddinCat / BestClash
@@ -202,6 +232,7 @@ async function doUpdate() {
     const btn = document.getElementById('updateBtn');
     btn.disabled = true;
     btn.innerText = '更新中...';
+    
     try {
         const res = await fetch('/api/update_subscription', {
             method: 'POST',
@@ -209,13 +240,45 @@ async function doUpdate() {
             body: JSON.stringify({url})
         });
         const data = await res.json();
-        alert(data.message || '更新完成');
-        loadProxyStatus();
+        
+        if (data.status === 'success') {
+            alert('✅ ' + data.message + '\n\n接下来请前往"节点选择"页面选择节点');
+            // 🔥 立即刷新状态
+            await loadProxyStatus();
+            await loadClashStatus();
+        } else {
+            alert('❌ ' + data.message);
+        }
     } catch (e) {
         alert('更新失败: ' + e.message);
     } finally {
         btn.disabled = false;
         btn.innerText = '更新配置';
+    }
+}
+
+async function loadClashStatus() {
+    try {
+        const res = await fetch('/api/proxy_status');
+        const data = await res.json();
+        
+        const clashStatusEl = document.getElementById('clashStatus');
+        
+        if (data.clash_running) {
+            clashStatusEl.className = 'clash-status running';
+            clashStatusEl.innerHTML = `
+                <i class="ri-checkbox-circle-line"></i>
+                <span>Clash 运行中 - 可以选择节点</span>
+            `;
+        } else {
+            clashStatusEl.className = 'clash-status stopped';
+            clashStatusEl.innerHTML = `
+                <i class="ri-close-circle-line"></i>
+                <span>Clash 未运行 - 请先更新订阅</span>
+            `;
+        }
+    } catch (e) {
+        console.error('加载 Clash 状态失败:', e);
     }
 }
 
@@ -232,8 +295,15 @@ async function loadProxyStatus() {
     }
 }
 
+// 初始加载
 loadProxyStatus();
-setInterval(loadProxyStatus, 10000);
+loadClashStatus();
+
+// 定时刷新
+setInterval(() => {
+    loadProxyStatus();
+    loadClashStatus();
+}, 5000);
 </script>
 </body>
 </html>

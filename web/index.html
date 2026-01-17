@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Proxy Launcher</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        :root { --bg: #0f172a; --accent: #38bdf8; --glass: rgba(30, 41, 59, 0.7); }
+        body { 
+            background: var(--bg); color: #f1f5f9; font-family: 'Segoe UI', sans-serif;
+            margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+        }
+        .container { width: 90%; max-width: 500px; margin-top: 60px; }
+        .card { 
+            background: var(--glass); backdrop-filter: blur(12px); border-radius: 24px;
+            padding: 30px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .status-card {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .status-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-card p {
+            margin: 5px 0;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-badge.active {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+        .status-badge.inactive {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        .status-badge.warning {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+        }
+
+        input {
+            width: 100%; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2); color: white; margin: 20px 0; box-sizing: border-box;
+        }
+        .btn-main {
+            width: 100%; padding: 14px; border-radius: 12px; border: none;
+            background: var(--accent); color: #0f172a; font-weight: bold; cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-main:hover {
+            background: #0ea5e9;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(56, 189, 248, 0.4);
+        }
+        .btn-main:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .nav-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 15px;
+            text-decoration: none;
+            color: white;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        .nav-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--accent);
+            transform: translateY(-3px);
+        }
+        .nav-item i {
+            font-size: 1.5rem;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            text-align: left;
+        }
+        .info-text .step {
+            margin: 6px 0;
+            padding-left: 20px;
+        }
+        .info-text .step::before {
+            content: "→";
+            margin-right: 8px;
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h2 style="margin:0">AI 订阅助手</h2>
+        <p style="color:#94a3b8; font-size:14px">请输入 Clash 订阅链接</p>
+
+        <div class="status-card">
+            <h3>
+                <i class="ri-shield-check-line"></i>
+                系统代理状态
+            </h3>
+            <p id="proxyStatus">检查中...</p>
+        </div>
+
+        <input type="text" id="subUrl" placeholder="https://..." />
+        <button id="updateBtn" class="btn-main" onclick="doUpdate()">更新配置</button>
+
+        <!-- AI 快捷入口 -->
+        <div class="nav-grid">
+            <a href="/nodes.html" class="nav-item">
+                <i class="ri-server-line"></i>节点选择
+            </a>
+            <a href="https://chatgpt.com" target="_blank" class="nav-item">
+                <i class="ri-openai-fill"></i>ChatGPT
+            </a>
+            <a href="https://claude.ai" target="_blank" class="nav-item">
+                <i class="ri-robot-2-fill"></i>Claude
+            </a>
+            <a href="https://gemini.google.com" target="_blank" class="nav-item">
+                <i class="ri-google-fill"></i>Gemini
+            </a>
+            <a href="https://grok.com" target="_blank" class="nav-item">
+                <i class="ri-flashlight-fill"></i>Grok
+            </a>
+        </div>
+
+        <div class="info-text">
+            <strong>📋 使用步骤：</strong>
+            <div class="step">第一步：输入订阅链接并点击“更新配置”</div>
+            <div class="step">第二步：前往“节点选择”页面选择节点</div>
+            <div class="step">第三步：选择节点后系统代理会自动启用</div>
+            <div class="step">第四步：直接使用浏览器访问需要代理的网站</div>
+            <div class="step">右键托盘图标可退出</div>
+            <hr style="border:none;border-top:1px dashed rgba(255,255,255,0.15);margin:12px 0;">
+
+            <strong>🌐 推荐免费 Clash 节点：</strong>
+
+            <div class="step">
+                免费订阅链接：(点击后复制链接，不是复制网页内容)
+                <a href="https://ghfile.geekertao.top/https://github.com/PuddinCat/BestClash/blob/main/proxies.yaml"
+                   target="_blank" style="color:#38bdf8;word-break:break-all;">
+                    PuddinCat / BestClash
+                </a>
+            </div>
+
+            <div class="step">
+                免费节点获取网站：
+                <a href="https://openclash.cc/" target="_blank" style="color:#38bdf8;">
+                    openclash.cc
+                </a>
+            </div>
+
+            <div class="step">
+                免费节点合集：
+                <a href="https://www.freeclashnode.com/free-node/" target="_blank" style="color:#38bdf8;">
+                    freeclashnode.com
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function doUpdate() {
+    const url = document.getElementById('subUrl').value.trim();
+    if (!url.startsWith('http')) {
+        alert('请输入有效的订阅链接');
+        return;
+    }
+    const btn = document.getElementById('updateBtn');
+    btn.disabled = true;
+    btn.innerText = '更新中...';
+    try {
+        const res = await fetch('/api/update_subscription', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({url})
+        });
+        const data = await res.json();
+        alert(data.message || '更新完成');
+        loadProxyStatus();
+    } catch (e) {
+        alert('更新失败: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = '更新配置';
+    }
+}
+
+async function loadProxyStatus() {
+    try {
+        const res = await fetch('/api/proxy_status');
+        const data = await res.json();
+        document.getElementById('proxyStatus').innerHTML = data.enabled
+            ? `<span class="status-badge active">● 已启用</span> ${data.status}`
+            : `<span class="status-badge warning">● 待启用</span> 请选择节点`;
+    } catch {
+        document.getElementById('proxyStatus').innerHTML =
+            '<span class="status-badge inactive">● 检查失败</span>';
+    }
+}
+
+loadProxyStatus();
+setInterval(loadProxyStatus, 10000);
+</script>
+</body>
+</html>

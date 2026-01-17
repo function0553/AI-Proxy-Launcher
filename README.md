@@ -10,7 +10,7 @@
 - │   └── config.yaml
 - ├── resources/
 - │   └── clash-core.exe
-- ├── src/
+- ├── core/
 - │   ├── clash_runner.py
 - │   ├── clashn_format.py
 - │   ├── update_manager.py

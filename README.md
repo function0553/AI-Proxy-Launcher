@@ -1,26 +1,26 @@
 # AI Proxy Launcher
-AI ChatGPT Grok Gemini Cluade 代理 VPN 魔法上网
-AI Proxy Launcher 是一个支持 Clash 节点管理的工具，旨在简化代理节点的配置和切换，适用于中国大陆等地区的代理需求。该项目提供了一个简易的用户界面，允许用户通过输入 Clash 订阅链接，自动更新代理配置，并选择和切换代理节点。
-项目结构：
-AI-Proxy-Launcher/
-│
-├── clash/
-│   └── clash-core.exe
-├── config/
-│   └── config.yaml
-├── resources/
-│   └── clash-core.exe
-├── src/
-│   ├── clash_runner.py
-│   ├── clashn_format.py
-│   ├── update_manager.py
-│   ├── windows_proxy.py
-│   ├── yaml_merge.py
-│   └── freeclash_fetch.py
-├── index.html
-├── nodes.html
-├── README.md
-└── LICENSE
+- AI ChatGPT Grok Gemini Cluade 代理 VPN 魔法上网
+- AI Proxy Launcher 是一个支持 Clash 节点管理的工具，旨在简化代理节点的配置和切换，适用于中国大陆等地区的代理需求。该项目提供了一个简易的用户界面，允许用户通过输入 Clash 订阅链接，自动更新代理配置，并选择和切换代理节点。
+- 项目结构：
+- AI-Proxy-Launcher/
+- │
+- ├── clash/
+- │   └── clash-core.exe
+- ├── config/
+- │   └── config.yaml
+- ├── resources/
+- │   └── clash-core.exe
+- ├── src/
+- │   ├── clash_runner.py
+- │   ├── clashn_format.py
+- │   ├── update_manager.py
+- │   ├── windows_proxy.py
+- │   ├── yaml_merge.py
+- │   └── freeclash_fetch.py
+- ├── index.html
+- ├── nodes.html
+- ├── README.md
+- └── LICENSE
 
 ## 功能概述
 
@@ -88,6 +88,7 @@ AI-Proxy-Launcher/
 ### 3. 系统代理管理
 
 系统会自动启用 Windows 的系统代理设置，并允许你在不同的节点之间切换。
+#### 4.目前版本为1.0
 
 ## 开发与贡献
 
